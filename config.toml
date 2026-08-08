@@ -1,0 +1,61 @@
+# Configuracao do tradutor de webtoon. Tudo aqui e opcional -- os valores
+# abaixo sao os mesmos defaults do codigo, deixados a vista para facilitar
+# ajuste. Apague uma linha e ela volta ao default.
+
+hotkey = "<ctrl>+<alt>+q"
+
+[ocr]
+engine = "paddle"
+lang = "korean"
+
+# "auto" usa a GPU quando ha CUDA disponivel e cai para CPU caso contrario.
+# Nao ha fallback automatico DEPOIS de uma falha de GPU: o Paddle fica com
+# estado inconsistente e passa a devolver texto lixo em vez de erro. Se a
+# placa der problema, troque aqui para "cpu" conscientemente.
+device = "auto"
+
+# Medido nesta maquina (RTX 5060 Ti, 780x540 com upscale 2x):
+#   gpu + server_det ... 0.25s por pagina, 10/10 linhas
+#   cpu + mobile_det ... 5.0s  por pagina,  8/10 linhas
+#   cpu + server_det ... 23s   por pagina, 10/10 linhas
+det_model = "PP-OCRv5_server_det"      # usado na GPU
+det_model_cpu = "PP-OCRv5_mobile_det"  # usado na CPU: o server e inviavel sem placa
+
+# Precisa ficar explicito. Se o PaddleOCR deduzir este modelo a partir de
+# `lang`, o reconhecimento devolve strings VAZIAS na GPU, sem erro nenhum.
+rec_model = "korean_PP-OCRv5_mobile_rec"
+
+# Texto de webtoon em zoom 100% e pequeno demais para o modelo. Ampliar antes
+# de reconhecer e o maior ganho isolado de acuracia do pipeline.
+upscale = 2.0
+min_confidence = 0.5
+
+# Só afetam o modo CPU. O oneDNN do PaddlePaddle 3.3 quebra no executor PIR
+# ("ConvertPirAttribute2RuntimeAttribute not support"), entao fica desligado.
+enable_mkldnn = false
+cpu_threads = 8
+
+[translate]
+provider = "ollama"
+model = "gemma3:12b"
+host = "http://127.0.0.1:11434"
+target_lang = "English"
+timeout_s = 120.0
+use_cache = true
+
+# Manda o recorte junto do texto para o modelo corrigir o OCR olhando a
+# imagem, antes de traduzir. Custa 1 a 4 s a mais por pagina e evita que uma
+# silaba lida errado vire conteudo inventado. Ponha false para priorizar
+# velocidade.
+use_vision = true
+
+# O Ollama descarrega o modelo da VRAM depois de 5 min ociosos por padrao, e
+# recarregar custa ~80 s no meio da leitura.
+keep_alive = "30m"
+
+[render]
+font_family = "Segoe UI"
+min_font_pt = 8
+max_font_pt = 40
+box_padding = 6
+corner_radius = 8
