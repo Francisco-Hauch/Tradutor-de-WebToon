@@ -135,11 +135,21 @@ Na primeira execução o PaddleOCR baixa os modelos (~100 MB) e o Ollama sobe o
 ## Como usar
 
 ```powershell
-uv run wt-app        # sobe na bandeja e ativa o atalho global
+uv run wt-app        # abre o painel, sobe na bandeja e ativa o atalho global
 ```
 
-Espere o ícone da bandeja dizer **"pronto"** (~1 min na primeira vez: carrega o
-OCR e sobe o modelo na VRAM). A partir daí:
+Ao iniciar, o app abre uma **janela de controle** — o rosto do produto — e
+coloca um ícone na bandeja. A janela mostra o estado (carregando / pronto /
+erro), diz numa olhada se **OCR** e **Ollama** estão disponíveis nesta máquina,
+tem os botões de traduzir e limpar, e concentra os ajustes que você mais mexe
+(atalho, `use_vision`, dispositivo do OCR). **Fechar a janela não fecha o app**:
+ele continua na bandeja, e o ícone (ou "Abrir painel") traz a janela de volta.
+Sair de verdade é pelo "Sair".
+
+![Painel de controle](docs/painel.png)
+
+Espere o painel dizer **"Pronto"** (~1 min na primeira vez: carrega o OCR e
+sobe o modelo na VRAM). A partir daí:
 
 | Ação | O que faz |
 |---|---|
@@ -167,6 +177,39 @@ uv run python tests/make_synthetic.py                               # regera a p
 
 `wt ocr` grava uma imagem com as caixas numeradas, que casam com os índices
 impressos no console — é como se avalia qualidade de OCR de verdade.
+
+---
+
+## Executável (.exe)
+
+Para rodar o app com dois cliques, sem terminal, existe um build **leve**:
+
+```powershell
+.\build.ps1        # gera dist\Tradutor de Webtoon.exe
+```
+
+O script cria uma venv à parte (`.venv-build`), instala só a casca do app
+(`requirements-app.txt` — PySide6, captura, bandeja) e empacota com o
+PyInstaller (`webtoon.spec`). Não mexe na sua venv do `uv`.
+
+**O que o .exe leve faz:** abre a janela, mostra a cara e roda na bandeja —
+**sem exigir Ollama nem placa**. É o "app vivo, aberto em segundo plano". A
+stack pesada de OCR (PaddlePaddle + CUDA, vários GB) fica **de fora** do
+pacote de propósito: numa máquina que a tenha instalada (via `uv sync`), o app
+a usa em tempo de execução; num .exe leve, o painel só mostra que OCR e Ollama
+estão ausentes e a tradução fica desligada.
+
+Config e cache do executável ficam **ao lado do .exe** (`config.toml`,
+`cache/`), então o "Aplicar e salvar" do painel persiste entre execuções.
+
+Para um pacote que **traduz de fábrica** (empacotando Paddle+CUDA, um .exe de
+vários GB), o caminho é outro e bem mais frágil — não é o build deste script.
+
+### Abrir sozinho no login do Windows (opcional)
+
+Aperte `Win+R`, digite `shell:startup` e crie ali um atalho para o
+`Tradutor de Webtoon.exe`. Ele passa a subir junto com o Windows, já na
+bandeja.
 
 ---
 
