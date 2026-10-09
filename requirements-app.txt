@@ -1,0 +1,11 @@
+# Dependencias do executavel LEVE -- so a casca do app.
+# Sem paddle/paddleocr e sem as wheels CUDA: o .exe abre, mostra a cara e roda
+# na bandeja sem Ollama nem placa. A traducao de verdade so acende quando essas
+# dependencias existem na maquina (via `uv sync`, o fluxo completo do README).
+PySide6>=6.7
+mss>=9.0
+pynput>=1.7
+pillow>=10.0
+numpy>=1.26
+httpx>=0.27
+pyinstaller>=6.0

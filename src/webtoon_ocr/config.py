@@ -6,11 +6,20 @@ para voce ajustar modelo, atalho e motor de OCR sem mexer no codigo.
 
 from __future__ import annotations
 
+import sys
 import tomllib
 from dataclasses import dataclass, field, fields
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+# Onde vivem config.toml e o cache. Em dev, na raiz do repo. Dentro do
+# executavel do PyInstaller (`sys.frozen`), ao lado do .exe -- senao cairiam
+# na pasta temporaria que o onefile extrai e some ao fechar, e o "Aplicar e
+# salvar" do painel nao persistiria nada.
+if getattr(sys, "frozen", False):
+    PROJECT_ROOT = Path(sys.executable).resolve().parent
+else:
+    PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
 CONFIG_PATH = PROJECT_ROOT / "config.toml"
 CACHE_DIR = PROJECT_ROOT / "cache"
 
@@ -97,3 +106,37 @@ def load_config(path: Path | None = None) -> AppConfig:
         if isinstance(data.get(section), dict):
             _apply(obj, data[section])
     return cfg
+
+
+def _toml_value(value) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, str):
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{escaped}"'
+    return str(value)
+
+
+def save_config(cfg: AppConfig, path: Path | None = None) -> Path:
+    """Grava a config inteira em TOML, com as tres secoes.
+
+    Existe para o painel persistir o que o usuario mexe (atalho, use_vision,
+    device) sem depender de um escritor de TOML externo. Serializa apenas os
+    campos das dataclasses, entao o arquivo fica sempre valido para o
+    `load_config` reler.
+    """
+    path = path or CONFIG_PATH
+    lines: list[str] = [
+        "# Gerado pelo painel do Tradutor de Webtoon.",
+        "# Todo campo e opcional; apagar um volta ao default do codigo.",
+        "",
+        f"hotkey = {_toml_value(cfg.hotkey)}",
+    ]
+    for section, obj in (("ocr", cfg.ocr), ("translate", cfg.translate), ("render", cfg.render)):
+        lines.append("")
+        lines.append(f"[{section}]")
+        for f in fields(obj):
+            lines.append(f"{f.name} = {_toml_value(getattr(obj, f.name))}")
+
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
