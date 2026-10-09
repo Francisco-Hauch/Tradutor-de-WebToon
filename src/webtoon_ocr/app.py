@@ -30,6 +30,7 @@ from . import capture
 from . import health as health_mod
 from .assets import app_icon
 from .config import AppConfig, load_config, save_config
+from .metricas import Metrics
 from .qtutil import ensure_app  # importa cedo: ajusta o DPI antes do Qt
 from .render import overlay as overlay_mod
 from .selector import select_region
@@ -51,6 +52,7 @@ class App(QObject):
     _failed = Signal(str)
     _status = Signal(str, str, str)   # (estado, texto, detalhe)
     _health = Signal(object)          # health_mod.Health
+    _metrics = Signal(object)         # Metrics, depois de cada recorte
 
     def __init__(self, cfg: AppConfig) -> None:
         super().__init__()
@@ -63,6 +65,7 @@ class App(QObject):
         self._busy = False
         self._enabled = True
         self._lock = threading.Lock()
+        self.metrics = Metrics()
 
         self._triggered.connect(self._on_trigger)
         self._dismissed.connect(self._on_dismiss)
@@ -70,6 +73,7 @@ class App(QObject):
         self._failed.connect(self._on_failed)
         self._status.connect(self._on_status)
         self._health.connect(self._on_health)
+        self._metrics.connect(lambda m: self.panel.set_metrics(m))
 
         self.panel = self._build_panel()
         self._tray = self._build_tray()
@@ -85,6 +89,7 @@ class App(QObject):
         panel.settings_applied.connect(self._apply_settings)
         panel.quit_requested.connect(self.quit)
         panel.set_status("loading", "Iniciando…", "")
+        panel.set_metrics(self.metrics)
         return panel
 
     def _build_tray(self) -> QSystemTrayIcon:
@@ -287,12 +292,22 @@ class App(QObject):
                 self._pipeline = build(self.cfg)
 
             blocks = self._pipeline.run(crop)
+            self._record_metrics(blocks)
             # Do espaco do recorte para o espaco da tela, que e onde o
             # overlay desenha.
             self._ready.emit([b.translated_by(rect[0], rect[1]) for b in blocks])
         except Exception as exc:
             log.exception("falha na traducao")
             self._failed.emit(str(exc))
+
+    def _record_metrics(self, blocks: list[Block]) -> None:
+        # Metrica nunca pode derrubar a traducao: falhou, loga e segue.
+        try:
+            self.metrics.record(*self._pipeline.last_timing, blocks)
+            self.metrics.save()
+        except Exception:  # noqa: BLE001
+            log.exception("nao consegui gravar as metricas")
+        self._metrics.emit(self.metrics)
 
     def _on_ready(self, blocks: list[Block]) -> None:
         self._busy = False

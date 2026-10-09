@@ -27,6 +27,8 @@ class Pipeline:
         self.cfg = cfg
         self.engine = engine
         self.translator = translator
+        # (ocr_ms, traducao_ms) do ultimo run, lido pelo painel de metricas.
+        self.last_timing: tuple[float, float] = (0.0, 0.0)
 
     def run(self, image: Image.Image) -> list[Block]:
         started = time.perf_counter()
@@ -35,6 +37,7 @@ class Pipeline:
 
         blocks = group(boxes)
         if not blocks:
+            self.last_timing = ((t_ocr - started) * 1000, 0.0)
             log.info("nenhum texto encontrado (%.2fs)", t_ocr - started)
             return []
 
@@ -44,6 +47,7 @@ class Pipeline:
         for block, translated in zip(blocks, translations):
             block.translated = translated
 
+        self.last_timing = ((t_ocr - started) * 1000, (time.perf_counter() - t_ocr) * 1000)
         log.info(
             "%d linha(s) -> %d balao(oes) | ocr %.2fs, traducao %.2fs",
             len(boxes), len(blocks), t_ocr - started, time.perf_counter() - t_ocr,
